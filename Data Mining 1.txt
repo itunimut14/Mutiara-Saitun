@@ -1,0 +1,104 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.naive_bayes import GaussianNB
+
+# Membaca data dari file
+file_path = 'classification_data1.csv'  # Ganti dengan path yang sesuai
+data = pd.read_csv(file_path)
+
+# Memisahkan fitur (X) dan target (y)
+X = data.drop(columns=['Weather Type'])
+y = data['Weather Type']
+
+# Melakukan encoding untuk data kategorikal
+categorical_columns = X.select_dtypes(include=['object']).columns
+encoder = LabelEncoder()
+
+# Transformasi kolom kategorikal ke numerik
+for col in categorical_columns:
+    X[col] = encoder.fit_transform(X[col])
+
+# Membagi data menjadi data pelatihan dan pengujian
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Inisialisasi model Naive Bayes
+nb_model = GaussianNB()
+
+# Melatih model dengan data pelatihan
+nb_model.fit(X_train, y_train)
+
+# Memprediksi data pengujian
+y_pred = nb_model.predict(X_test)
+
+# Mendapatkan daftar kelas unik dari y_test
+unique_classes = np.unique(y_test)
+
+# Menghitung confusion matrix
+conf_matrix = confusion_matrix(y_test, y_pred, labels=unique_classes)
+
+# Visualisasi heatmap confusion matrix
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=unique_classes, yticklabels=unique_classes)
+plt.title('Confusion Matrix')
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.show()
+
+# Menghitung TP, FP, TN, FN untuk setiap kelas
+FP = conf_matrix.sum(axis=0) - np.diag(conf_matrix)  # Kolom dikurangi diagonal
+FN = conf_matrix.sum(axis=1) - np.diag(conf_matrix)  # Baris dikurangi diagonal
+TP = np.diag(conf_matrix)  # Diagonal utama
+TN = conf_matrix.sum() - (FP + FN + TP)  # Total - FP - FN - TP
+
+# Membuat DataFrame untuk visualisasi TP, FP, TN, FN
+matrix_df = pd.DataFrame({
+    'Class': unique_classes,
+    'True Positive (TP)': TP,
+    'False Positive (FP)': FP,
+    'True Negative (TN)': TN,
+    'False Negative (FN)': FN
+})
+
+# Print confusion matrix metrics
+print("Confusion Matrix Metrics:")
+print(matrix_df)
+
+# Visualisasi barplot untuk TP, FP, TN, FN
+matrix_df.set_index('Class').plot(kind='bar', figsize=(10, 6))
+plt.title('Confusion Matrix Metrics (TP, FP, TN, FN) per Class')
+plt.ylabel('Count')
+plt.xlabel('Class')
+plt.xticks(rotation=45)
+plt.show()
+
+# Menampilkan Confusion Matrix dalam format 2x2 untuk setiap kelas
+for i, label in enumerate(unique_classes):
+    print(f"\nConfusion Matrix for Class: {label}")
+    
+    # TP, FP, TN, FN untuk kelas tertentu
+    tp = TP[i]
+    fp = FP[i]
+    tn = TN[i]
+    fn = FN[i]
+    
+    # Membuat matriks 2x2 untuk kelas ini
+    matrix_2x2 = pd.DataFrame({
+        'Predicted Positive': [tp, fp],
+        'Predicted Negative': [fn, tn]
+    }, index=['Actual Positive', 'Actual Negative'])
+    
+    # Menampilkan matriks 2x2
+    print(matrix_2x2)
+
+# Print laporan klasifikasi
+accuracy = accuracy_score(y_test, y_pred)
+report = classification_report(y_test, y_pred, labels=unique_classes)
+
+print(f"Akurasi Model: {accuracy * 100:.2f}%")
+print("\nLaporan Klasifikasi:\n")
+print(report)
